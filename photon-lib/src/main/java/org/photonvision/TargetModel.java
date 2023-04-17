@@ -59,6 +59,7 @@ public class TargetModel {
         this.isPlanar = true;
         this.isSpherical = false;
     }
+
     /**
      * Creates a spherical target model which has similar dimensions when viewed from any angle. This
      * model will only have one vertex which has x == radius.
@@ -68,6 +69,7 @@ public class TargetModel {
         this.isPlanar = false;
         this.isSpherical = true;
     }
+
     /**
      * Creates a target model from arbitrary 3d vertices. Automatically determines if the given
      * vertices are planar(x == 0). More than 2 vertices must be given.

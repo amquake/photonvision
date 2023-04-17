@@ -33,7 +33,7 @@ import org.photonvision.targeting.PhotonPipelineResult;
 import org.photonvision.targeting.PhotonTrackedTarget;
 
 /** @deprecated Use {@link PhotonCameraSim} instead */
-@Deprecated
+@Deprecated(since="2023", forRemoval = true)
 @SuppressWarnings("unused")
 public class SimPhotonCamera {
     NTTopicSet ts = new NTTopicSet();

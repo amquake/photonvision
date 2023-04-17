@@ -74,7 +74,7 @@ public class CameraProperties {
     public CameraProperties() {
         setCalibration(960, 720, Rotation2d.fromDegrees(90));
     }
-    ;
+
     /**
      * Reads camera properties from a photonvision <code>config.json</code> file. This is only the
      * resolution, camera intrinsics, distortion coefficients, and average/std. dev. pixel error.
@@ -89,6 +89,7 @@ public class CameraProperties {
     public CameraProperties(String path, int width, int height) throws IOException {
         this(Path.of(path), width, height);
     }
+
     /**
      * Reads camera properties from a photonvision <code>config.json</code> file. This is only the
      * resolution, camera intrinsics, distortion coefficients, and average/std. dev. pixel error.
@@ -199,6 +200,7 @@ public class CameraProperties {
         this.avgErrorPx = avgErrorPx;
         this.errorStdDevPx = errorStdDevPx;
     }
+
     /**
      * @param fps The average frames per second the camera should process at. <b>Exposure time limits
      *     FPS if set!</b>
@@ -206,6 +208,7 @@ public class CameraProperties {
     public void setFPS(double fps) {
         frameSpeedMs = Math.max(1000.0 / fps, exposureTimeMs);
     }
+
     /**
      * @param exposureTimeMs The amount of time the "shutter" is open for one frame. Affects motion
      *     blur. <b>Frame speed(from FPS) is limited to this!</b>
@@ -214,6 +217,7 @@ public class CameraProperties {
         this.exposureTimeMs = exposureTimeMs;
         frameSpeedMs = Math.max(frameSpeedMs, exposureTimeMs);
     }
+
     /**
      * @param avgLatencyMs The average latency (from image capture to data published) in milliseconds
      *     a frame should have
@@ -221,6 +225,7 @@ public class CameraProperties {
     public void setAvgLatencyMs(double avgLatencyMs) {
         this.avgLatencyMs = avgLatencyMs;
     }
+
     /** @param latencyStdDevMs The standard deviation in milliseconds of the latency */
     public void setLatencyStdDevMs(double latencyStdDevMs) {
         this.latencyStdDevMs = latencyStdDevMs;
@@ -299,6 +304,7 @@ public class CameraProperties {
         double xOffset = cx - pixelX;
         return new Rotation2d(fx, xOffset);
     }
+
     /**
      * The pitch from the principal point of this camera to the pixel y value. Pitch is positive down.
      *
@@ -312,6 +318,7 @@ public class CameraProperties {
         double yOffset = cy - pixelY;
         return new Rotation2d(fy, -yOffset);
     }
+
     /**
      * Finds the yaw and pitch to the given image point. Yaw is positive left, and pitch is positive
      * down.
@@ -323,6 +330,7 @@ public class CameraProperties {
         return new Rotation3d(
                 0, getPixelPitch(point.y).getRadians(), getPixelYaw(point.x).getRadians());
     }
+
     /**
      * Gives the yaw and pitch of the line intersecting the camera lens and the given pixel
      * coordinates on the sensor. Yaw is positive left, and pitch positive down.
@@ -378,10 +386,12 @@ public class CameraProperties {
     public Rotation2d getDiagFOV() {
         return new Rotation2d(Math.hypot(getHorizFOV().getRadians(), getVertFOV().getRadians()));
     }
+
     /** Width:height */
     public double getAspectRatio() {
         return (double) resWidth / resHeight;
     }
+
     /**
      * Returns these pixel points as fractions of a 1x1 square image. This means the camera's aspect
      * ratio and resolution will be used, and the points' x and y may not reach all portions(e.g. a
@@ -424,6 +434,7 @@ public class CameraProperties {
     public double estLatencyMs() {
         return Math.max(avgLatencyMs + rand.nextGaussian() * latencyStdDevMs, 0);
     }
+
     /** @return Estimate how long until the next frame should be processed in milliseconds */
     public double estMsUntilNextFrame() {
         // exceptional processing latency blocks the next frame

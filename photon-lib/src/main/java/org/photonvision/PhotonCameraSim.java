@@ -112,6 +112,7 @@ public class PhotonCameraSim implements AutoCloseable {
     public PhotonCameraSim(PhotonCamera camera) {
         this(camera, CameraProperties.PERFECT_90DEG());
     }
+
     /**
      * Constructs a handle for simulating {@link PhotonCamera} values. Processing simulated targets
      * through this class will change the associated PhotonCamera's results.
@@ -138,6 +139,7 @@ public class PhotonCameraSim implements AutoCloseable {
         ts.subTable = rootTable;
         ts.updateEntries();
     }
+
     /**
      * Constructs a handle for simulating {@link PhotonCamera} values. Processing simulated targets
      * through this class will change the associated PhotonCamera's results.
@@ -210,6 +212,7 @@ public class PhotonCameraSim implements AutoCloseable {
                         (rel.camToTarg.getTranslation().getNorm() <= maxSightRangeMeters));
         return canSee;
     }
+
     /**
      * Determines if all target corners are inside the camera's image.
      *
@@ -266,6 +269,7 @@ public class PhotonCameraSim implements AutoCloseable {
     public void setMinTargetAreaPercent(double areaPercent) {
         this.minTargetAreaPercent = areaPercent;
     }
+
     /**
      * The minimum number of pixels a detected target must take up in the camera's image to be
      * processed.
@@ -273,6 +277,7 @@ public class PhotonCameraSim implements AutoCloseable {
     public void setMinTargetAreaPixels(double areaPx) {
         this.minTargetAreaPercent = areaPx / prop.getResArea() * 100;
     }
+
     /**
      * Maximum distance at which the target is illuminated to your camera. Note that minimum target
      * area of the image is separate from this.
@@ -280,14 +285,17 @@ public class PhotonCameraSim implements AutoCloseable {
     public void setMaxSightRange(double rangeMeters) {
         this.maxSightRangeMeters = rangeMeters;
     }
+
     /** Defines the order the targets are sorted in the pipeline result. */
     public void setTargetSortMode(PhotonTargetSortMode sortMode) {
         if (sortMode != null) this.sortMode = sortMode;
     }
+
     /** Sets whether the raw video stream simulation is enabled. */
     public void enableRawStream(boolean enabled) {
         videoSimRawEnabled = enabled;
     }
+
     /** Sets whether the processed video stream simulation is enabled. */
     public void enableProcessedStream(boolean enabled) {
         videoSimProcEnabled = enabled;
@@ -403,6 +411,7 @@ public class PhotonCameraSim implements AutoCloseable {
     public void submitProcessedFrame(PhotonPipelineResult result) {
         submitProcessedFrame(result, WPIUtilJNI.now());
     }
+
     /**
      * Simulate one processed frame of vision data, putting one result to NT. Image capture timestamp
      * overrides {@link PhotonPipelineResult#getTimestampSeconds() getTimestampSeconds()} for more

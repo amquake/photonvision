@@ -46,6 +46,7 @@ public class VisionTargetSim {
         this.model = model;
         this.fiducialID = -1;
     }
+
     /**
      * Describes a fiducial tag located somewhere on the field that your vision system can detect.
      *
@@ -74,6 +75,7 @@ public class VisionTargetSim {
     public TargetModel getModel() {
         return model;
     }
+
     /** This target's vertices offset from its field pose. */
     public List<Translation3d> getFieldVertices() {
         return model.getFieldVertices(pose);
