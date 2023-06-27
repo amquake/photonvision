@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 PhotonVision
+ * Copyright (c) PhotonVision
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,8 +28,10 @@
 #include <string>
 
 #include <networktables/BooleanTopic.h>
+#include <networktables/DoubleArrayTopic.h>
 #include <networktables/DoubleTopic.h>
 #include <networktables/IntegerTopic.h>
+#include <networktables/MultiSubscriber.h>
 #include <networktables/NetworkTable.h>
 #include <networktables/NetworkTableInstance.h>
 #include <networktables/RawTopic.h>
@@ -38,6 +40,10 @@
 #include <wpi/deprecated.h>
 
 #include "photonlib/PhotonPipelineResult.h"
+
+namespace cv {
+class Mat;
+}  // namespace cv
 
 namespace photonlib {
 
@@ -57,21 +63,25 @@ class PhotonCamera {
    * @param cameraName The name of the camera, as seen in the UI.
    * over.
    */
-  explicit PhotonCamera(std::shared_ptr<nt::NetworkTableInstance> instance,
-                        const std::string& cameraName);
+  explicit PhotonCamera(nt::NetworkTableInstance instance,
+                        const std::string_view cameraName);
 
   /**
    * Constructs a PhotonCamera from the name of the camera.
    * @param cameraName The nickname of the camera (found in the PhotonVision
    * UI).
    */
-  explicit PhotonCamera(const std::string& cameraName);
+  explicit PhotonCamera(const std::string_view cameraName);
+
+  PhotonCamera(PhotonCamera&&) = default;
+
+  virtual ~PhotonCamera() = default;
 
   /**
    * Returns the latest pipeline result.
    * @return The latest pipeline result.
    */
-  PhotonPipelineResult GetLatestResult();
+  virtual PhotonPipelineResult GetLatestResult();
 
   /**
    * Toggles driver mode.
@@ -132,6 +142,17 @@ class PhotonCamera {
   void SetLEDMode(LEDMode led);
 
   /**
+   * Returns the name of the camera.
+   * This will return the same value that was given to the constructor as
+   * cameraName.
+   * @return The name of the camera.
+   */
+  const std::string_view GetCameraName() const;
+
+  std::optional<cv::Mat> GetCameraMatrix();
+  std::optional<cv::Mat> GetDistCoeffs();
+
+  /**
    * Returns whether the latest target result has targets.
    * This method is deprecated; {@link PhotonPipelineResult#hasTargets()} should
    * be used instead.
@@ -147,22 +168,35 @@ class PhotonCamera {
     PhotonCamera::VERSION_CHECK_ENABLED = enabled;
   }
 
+  // For use in tests
+  bool test = false;
+  PhotonPipelineResult testResult;
+
  protected:
   std::shared_ptr<nt::NetworkTable> mainTable;
   std::shared_ptr<nt::NetworkTable> rootTable;
   nt::RawSubscriber rawBytesEntry;
-  nt::BooleanPublisher driverModeEntry;
-  nt::BooleanPublisher inputSaveImgEntry;
-  nt::BooleanPublisher outputSaveImgEntry;
-  nt::IntegerPublisher pipelineIndexEntry;
-  nt::IntegerPublisher ledModeEntry;
+  nt::IntegerPublisher inputSaveImgEntry;
+  nt::IntegerSubscriber inputSaveImgSubscriber;
+  nt::IntegerPublisher outputSaveImgEntry;
+  nt::IntegerSubscriber outputSaveImgSubscriber;
+  nt::IntegerPublisher pipelineIndexPub;
+  nt::IntegerSubscriber pipelineIndexSub;
+  nt::IntegerPublisher ledModePub;
+  nt::IntegerSubscriber ledModeSub;
   nt::StringSubscriber versionEntry;
 
+  nt::DoubleArraySubscriber cameraIntrinsicsSubscriber;
+  nt::DoubleArraySubscriber cameraDistortionSubscriber;
+
   nt::BooleanSubscriber driverModeSubscriber;
-  nt::IntegerSubscriber pipelineIndexSubscriber;
+  nt::BooleanPublisher driverModePublisher;
   nt::IntegerSubscriber ledModeSubscriber;
 
+  nt::MultiSubscriber m_topicNameSubscriber;
+
   std::string path;
+  std::string m_cameraName;
 
   mutable Packet packet;
 

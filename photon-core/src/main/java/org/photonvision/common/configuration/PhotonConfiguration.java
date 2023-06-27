@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 import org.photonvision.PhotonVersion;
 import org.photonvision.common.hardware.Platform;
 import org.photonvision.common.util.SerializationUtils;
-import org.photonvision.raspi.PicamJNI;
+import org.photonvision.raspi.LibCameraJNI;
 import org.photonvision.vision.processes.VisionModule;
 import org.photonvision.vision.processes.VisionModuleManager;
 import org.photonvision.vision.processes.VisionSource;
@@ -110,11 +110,11 @@ public class PhotonConfiguration {
         generalSubmap.put("version", PhotonVersion.versionString);
         generalSubmap.put(
                 "gpuAcceleration",
-                PicamJNI.isSupported()
-                        ? "Zerocopy MMAL on " + PicamJNI.getSensorModel().getFriendlyName()
+                LibCameraJNI.isSupported()
+                        ? "Zerocopy Libcamera on " + LibCameraJNI.getSensorModel().getFriendlyName()
                         : ""); // TODO add support for other types of GPU accel
         generalSubmap.put("hardwareModel", hardwareConfig.deviceName);
-        generalSubmap.put("hardwarePlatform", Platform.getCurrentPlatform().toString());
+        generalSubmap.put("hardwarePlatform", Platform.getPlatformName());
         settingsSubmap.put("general", generalSubmap);
 
         map.put("settings", settingsSubmap);
@@ -139,5 +139,18 @@ public class PhotonConfiguration {
         public int inputStreamPort;
         public List<HashMap<String, Object>> calibrations;
         public boolean isFovConfigurable = true;
+    }
+
+    @Override
+    public String toString() {
+        return "PhotonConfiguration [hardwareConfig="
+                + hardwareConfig
+                + ", hardwareSettings="
+                + hardwareSettings
+                + ", networkConfig="
+                + networkConfig
+                + ", cameraConfigurations="
+                + cameraConfigurations
+                + "]";
     }
 }

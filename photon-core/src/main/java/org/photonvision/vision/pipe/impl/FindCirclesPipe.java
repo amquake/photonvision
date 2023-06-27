@@ -33,6 +33,7 @@ public class FindCirclesPipe
     // Output vector of found circles. Each vector is encoded as 3 or 4 element floating-point vector
     // (x,y,radius) or (x,y,radius,votes) .
     private final Mat circles = new Mat();
+
     /**
      * Runs the process for the pipe. The reason we need a separate pipe for circles is because if we
      * were to use the FindShapes pipe, we would have to assume that any shape more than 10-20+ sides
@@ -66,7 +67,7 @@ public class FindCirclesPipe
                 1.0,
                 params.minDist,
                 params.maxCannyThresh,
-                params.accuracy,
+                Math.max(1.0, params.accuracy),
                 minRadius,
                 maxRadius);
         // Great, we now found the center point of the circle and it's radius, but we have no idea what

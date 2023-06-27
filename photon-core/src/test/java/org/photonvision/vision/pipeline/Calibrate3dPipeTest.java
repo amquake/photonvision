@@ -37,7 +37,9 @@ import org.photonvision.common.util.TestUtils;
 import org.photonvision.vision.calibration.CameraCalibrationCoefficients;
 import org.photonvision.vision.camera.QuirkyCamera;
 import org.photonvision.vision.frame.Frame;
+import org.photonvision.vision.frame.FrameDivisor;
 import org.photonvision.vision.frame.FrameStaticProperties;
+import org.photonvision.vision.frame.FrameThresholdType;
 import org.photonvision.vision.opencv.CVMat;
 import org.photonvision.vision.pipe.impl.Calibrate3dPipe;
 import org.photonvision.vision.pipe.impl.FindBoardCornersPipe;
@@ -61,7 +63,7 @@ public class Calibrate3dPipeTest {
         FindBoardCornersPipe findBoardCornersPipe = new FindBoardCornersPipe();
         findBoardCornersPipe.setParams(
                 new FindBoardCornersPipe.FindCornersPipeParams(
-                        11, 4, UICalibrationData.BoardType.DOTBOARD, 15));
+                        11, 4, UICalibrationData.BoardType.DOTBOARD, 15, FrameDivisor.NONE));
 
         List<Triple<Size, Mat, Mat>> foundCornersList = new ArrayList<>();
 
@@ -103,9 +105,11 @@ public class Calibrate3dPipeTest {
             var frame =
                     new Frame(
                             new CVMat(Imgcodecs.imread(file.getAbsolutePath())),
+                            new CVMat(),
+                            FrameThresholdType.NONE,
                             new FrameStaticProperties(640, 480, 60, null));
             var output = calibration3dPipeline.run(frame, QuirkyCamera.DefaultCamera);
-            // TestUtils.showImage(output.outputFrame.image.getMat());
+            // TestUtils.showImage(output.inputAndOutputFrame.processedImage.getMat());
             output.release();
             frame.release();
         }
@@ -119,6 +123,8 @@ public class Calibrate3dPipeTest {
         var frame =
                 new Frame(
                         new CVMat(Imgcodecs.imread(directoryListing[0].getAbsolutePath())),
+                        new CVMat(),
+                        FrameThresholdType.NONE,
                         new FrameStaticProperties(640, 480, 60, null));
         calibration3dPipeline.run(frame, QuirkyCamera.DefaultCamera).release();
         frame.release();
@@ -259,6 +265,7 @@ public class Calibrate3dPipeTest {
         calibration3dPipeline.getSettings().boardHeight = (int) Math.round(boardDim.height);
         calibration3dPipeline.getSettings().boardWidth = (int) Math.round(boardDim.width);
         calibration3dPipeline.getSettings().gridSize = boardGridSize_m;
+        calibration3dPipeline.getSettings().streamingFrameDivisor = FrameDivisor.NONE;
 
         for (var file : directoryListing) {
             if (file.isFile()) {
@@ -266,10 +273,13 @@ public class Calibrate3dPipeTest {
                 var frame =
                         new Frame(
                                 new CVMat(Imgcodecs.imread(file.getAbsolutePath())),
+                                new CVMat(),
+                                FrameThresholdType.NONE,
                                 new FrameStaticProperties((int) imgRes.width, (int) imgRes.height, 67, null));
                 var output = calibration3dPipeline.run(frame, QuirkyCamera.DefaultCamera);
 
-                // TestUtils.showImage(output.outputFrame.image.getMat(), file.getName(), 1);
+                // TestUtils.showImage(output.inputAndOutputFrame.processedImage.getMat(), file.getName(),
+                // 1);
                 output.release();
                 frame.release();
             }

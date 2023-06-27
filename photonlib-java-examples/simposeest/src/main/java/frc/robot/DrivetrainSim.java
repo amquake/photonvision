@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 PhotonVision
+ * Copyright (c) PhotonVision
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,7 @@ import edu.wpi.first.wpilibj.simulation.AnalogGyroSim;
 import edu.wpi.first.wpilibj.simulation.DifferentialDrivetrainSim;
 import edu.wpi.first.wpilibj.simulation.EncoderSim;
 import edu.wpi.first.wpilibj.simulation.PWMSim;
-import org.photonvision.SimVisionSystem;
+import org.photonvision.simulation.SimVisionSystem;
 
 /**
  * Implementation of a simulation of robot physics, sensors, motor controllers Includes a Simulated
@@ -149,7 +149,9 @@ public class DrivetrainSim {
         drivetrainSimulator.setPose(pose);
     }
 
-    /** @return The simulated robot's position, in meters. */
+    /**
+     * @return The simulated robot's position, in meters.
+     */
     public Pose2d getCurPose() {
         return drivetrainSimulator.getPose();
     }

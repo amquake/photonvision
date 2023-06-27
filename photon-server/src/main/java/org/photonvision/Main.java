@@ -29,6 +29,7 @@ import org.photonvision.common.configuration.CameraConfiguration;
 import org.photonvision.common.configuration.ConfigManager;
 import org.photonvision.common.dataflow.networktables.NetworkTablesManager;
 import org.photonvision.common.hardware.HardwareManager;
+import org.photonvision.common.hardware.PiVersion;
 import org.photonvision.common.hardware.Platform;
 import org.photonvision.common.logging.LogGroup;
 import org.photonvision.common.logging.LogLevel;
@@ -36,6 +37,7 @@ import org.photonvision.common.logging.Logger;
 import org.photonvision.common.networking.NetworkManager;
 import org.photonvision.common.util.TestUtils;
 import org.photonvision.common.util.numbers.IntegerCouple;
+import org.photonvision.raspi.LibCameraJNI;
 import org.photonvision.server.Server;
 import org.photonvision.vision.camera.FileVisionSource;
 import org.photonvision.vision.opencv.CVMat;
@@ -73,6 +75,11 @@ public class Main {
                 "Run in test mode with 2019 and 2020 WPI field images in place of cameras");
 
         options.addOption("p", "path", true, "Point test mode to a specific folder");
+        options.addOption(
+                "i",
+                "ignore-cameras",
+                true,
+                "Ignore cameras that match a regex. Uses camera name as provided by cscore.");
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = parser.parse(options, args);
@@ -96,6 +103,11 @@ public class Main {
                     logger.info("Loading from Path " + p.toAbsolutePath().toString());
                     testModeFolder = p;
                 }
+            }
+
+            if (cmd.hasOption("ignore-cameras")) {
+                VisionSourceManager.getInstance()
+                        .setIgnoredCamerasRegex(cmd.getOptionValue("ignore-cameras"));
             }
         }
         return true;
@@ -167,24 +179,6 @@ public class Main {
     private static void addTestModeSources() {
         ConfigManager.getInstance().load();
 
-        var camConfApril =
-                ConfigManager.getInstance().getConfig().getCameraConfigurations().get("Apriltag");
-        if (camConfApril == null) {
-            camConfApril =
-                    new CameraConfiguration("Apriltag", TestUtils.getTestModeApriltagPath().toString());
-            camConfApril.FOV = TestUtils.WPI2019Image.FOV;
-            camConfApril.calibrations.add(TestUtils.get2019LifeCamCoeffs(true));
-
-            var pipeline2019 = new AprilTagPipelineSettings();
-            pipeline2019.pipelineNickname = "Robots";
-            pipeline2019.outputShowMultipleTargets = true;
-            pipeline2019.inputShouldShow = true;
-
-            var psList2019 = new ArrayList<CVPipelineSettings>();
-            psList2019.add(pipeline2019);
-            camConfApril.pipelineSettings = psList2019;
-        }
-
         var camConf2019 =
                 ConfigManager.getInstance().getConfig().getCameraConfigurations().get("WPI2019");
         if (camConf2019 == null) {
@@ -243,6 +237,32 @@ public class Main {
             camConf2022.pipelineSettings = psList2022;
         }
 
+        CameraConfiguration camConf2023 =
+                ConfigManager.getInstance().getConfig().getCameraConfigurations().get("WPI2023");
+        if (camConf2023 == null) {
+            camConf2023 =
+                    new CameraConfiguration(
+                            "WPI2023",
+                            TestUtils.getResourcesFolderPath(true)
+                                    .resolve("testimages")
+                                    .resolve(TestUtils.WPI2023Apriltags.k383_60_Angle2.path)
+                                    .toString());
+
+            camConf2023.FOV = TestUtils.WPI2023Apriltags.FOV;
+            camConf2023.calibrations.add(TestUtils.get2023LifeCamCoeffs(true));
+
+            var pipeline2023 = new AprilTagPipelineSettings();
+            var path_split = Path.of(camConf2023.path).getFileName().toString();
+            pipeline2023.pipelineNickname = path_split.replace(".png", "");
+            pipeline2023.targetModel = TargetModel.k6in_16h5;
+            pipeline2023.inputShouldShow = true;
+            pipeline2023.solvePNPEnabled = true;
+
+            var psList2023 = new ArrayList<CVPipelineSettings>();
+            psList2023.add(pipeline2023);
+            camConf2023.pipelineSettings = psList2023;
+        }
+
         // Colored shape testing
         var camConfShape =
                 ConfigManager.getInstance().getConfig().getCameraConfigurations().get("Shape");
@@ -267,13 +287,13 @@ public class Main {
 
         var collectedSources = new ArrayList<VisionSource>();
 
-        var fvsApril = new FileVisionSource(camConfApril);
         var fvsShape = new FileVisionSource(camConfShape);
         var fvs2019 = new FileVisionSource(camConf2019);
         var fvs2020 = new FileVisionSource(camConf2020);
         var fvs2022 = new FileVisionSource(camConf2022);
+        var fvs2023 = new FileVisionSource(camConf2023);
 
-        collectedSources.add(fvsApril);
+        collectedSources.add(fvs2023);
         collectedSources.add(fvs2022);
         collectedSources.add(fvsShape);
         collectedSources.add(fvs2020);
@@ -292,11 +312,11 @@ public class Main {
             logger.error("Failed to load native libraries!", e);
         }
 
-        // try {
-        //    PicamJNI.forceLoad();
-        // } catch (IOException e) {
-        //    logger.error("Failed to load Picam JNI!", e);
-        // }
+        try {
+            LibCameraJNI.forceLoad();
+        } catch (IOException e) {
+            logger.error("Failed to load native libraries!", e);
+        }
 
         try {
             if (!handleArgs(args)) {
@@ -314,6 +334,7 @@ public class Main {
         Logger.setLevel(LogGroup.WebServer, logLevel);
         Logger.setLevel(LogGroup.VisionModule, logLevel);
         Logger.setLevel(LogGroup.Data, logLevel);
+        Logger.setLevel(LogGroup.Config, logLevel);
         Logger.setLevel(LogGroup.General, logLevel);
         logger.info("Logging initialized in debug mode.");
 
@@ -321,8 +342,8 @@ public class Main {
                 "Starting PhotonVision version "
                         + PhotonVersion.versionString
                         + " on "
-                        + Platform.currentPlatform.toString()
-                        + (Platform.isRaspberryPi() ? (" (Pi " + Platform.currentPiVersion.name() + ")") : ""));
+                        + Platform.getPlatformName()
+                        + (Platform.isRaspberryPi() ? (" (Pi " + PiVersion.getPiVersion() + ")") : ""));
 
         ConfigManager.getInstance().load(); // init config manager
         ConfigManager.getInstance().requestSave();
@@ -349,6 +370,6 @@ public class Main {
             }
         }
 
-        Server.main(DEFAULT_WEBPORT);
+        Server.start(DEFAULT_WEBPORT);
     }
 }

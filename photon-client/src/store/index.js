@@ -15,6 +15,7 @@ export default new Vuex.Store({
     },
     state: {
         backendConnected: false,
+        websocket: null,
         ntConnectionInfo: {
             connected: false,
             address: "",
@@ -51,7 +52,7 @@ export default new Vuex.Store({
                 isFovConfigurable: true,
                 calibrated: false,
                 currentPipelineSettings: {
-                    pipelineType: 4, // One of "calib", "driver", "reflective", "shape", "AprilTag"
+                    pipelineType: 5, // One of "calib", "driver", "reflective", "shape", "AprilTag"
                     // 2 is reflective
 
                     // Settings that apply to all pipeline types
@@ -90,13 +91,13 @@ export default new Vuex.Store({
                     cornerDetectionAccuracyPercentage: 10,
 
                     // Settings that apply to AprilTag
-                    tagFamily: 0,
+                    tagFamily: 1,
                     decimate: 1.0,
                     blur: 0.0,
                     threads: 1,
                     debug: false,
                     refineEdges: true,
-                    numIterations: 1,
+                    numIterations: 30,
                     decisionMargin: 0,
                     hammingDist: 0,
                 }
@@ -105,24 +106,26 @@ export default new Vuex.Store({
         pipelineResults: {
                 fps: 0,
                 latency: 0,
-                targets: [{
-                    // Available in both 2D and 3D
-                    pitch: 0,
-                    yaw: 0,
-                    skew: 0,
-                    area: 0,
-                    // 3D only
-                    pose: {x: 1, y: 1, z: 0, qw: 1, qx: 0, qy: 0, qz: 0},
-                },
-            {
-                // Available in both 2D and 3D
-                pitch: 0,
-                yaw: 0,
-                skew: 0,
-                area: 0,
-                // 3D only
-                pose: {x: 2, y: 3, z: 0, qw: 1, qx: 0, qy: 0, qz: 0},
-            }]
+                targets: [
+                    {
+                        // Available in both 2D and 3D
+                        pitch: 0,
+                        yaw: 0,
+                        skew: 0,
+                        area: 0,
+                        // 3D only
+                        pose: {x: 1, y: 1, z: 0, qw: 1, qx: 0, qy: 0, qz: 0},
+                    },
+                    {
+                        // Available in both 2D and 3D
+                        pitch: 0,
+                        yaw: 0,
+                        skew: 0,
+                        area: 0,
+                        // 3D only
+                        pose: {x: 2, y: 3, z: 0, qw: 1, qx: 0, qy: 0, qz: 0},
+                    }
+                ]
         },
         settings: {
             general: {
@@ -134,7 +137,7 @@ export default new Vuex.Store({
                 hardwarePlatform: "Unknown",
             },
             networkSettings: {
-                teamNumber: 0,
+                ntServerAddress: "",
 
                 supported: true,
                 // Below options are only configurable if supported is true
@@ -151,7 +154,7 @@ export default new Vuex.Store({
         calibrationData: {
             count: 0,
             videoModeIndex: 0,
-            minCount: 12, // Gets set by backend anyways, but we need a sane default
+            minCount: 12, // Gets set by backend anyway, but we need a sane default
             hasEnough: false,
             squareSizeIn: 1.0,
             patternWidth: 8,
@@ -169,6 +172,7 @@ export default new Vuex.Store({
     },
     mutations: {
         compactMode: set('compactMode'),
+        websocket: set('websocket'),
         cameraSettings: set('cameraSettings'),
         currentCameraIndex: set('currentCameraIndex'),
         selectedOutputs: set('selectedOutputs'),

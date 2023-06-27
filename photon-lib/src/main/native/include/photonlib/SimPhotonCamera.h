@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 PhotonVision
+ * Copyright (c) PhotonVision
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -37,7 +37,7 @@
 namespace photonlib {
 class SimPhotonCamera : public PhotonCamera {
  public:
-  SimPhotonCamera(std::shared_ptr<nt::NetworkTableInstance> instance,
+  SimPhotonCamera(nt::NetworkTableInstance instance,
                   const std::string& cameraName)
       : PhotonCamera(instance, cameraName) {
     latencyMillisEntry = rootTable->GetEntry("latencyMillis");
@@ -47,15 +47,15 @@ class SimPhotonCamera : public PhotonCamera {
     targetAreaEntry = rootTable->GetEntry("targetAreaEntry");
     targetSkewEntry = rootTable->GetEntry("targetSkewEntry");
     targetPoseEntry = rootTable->GetEntry("targetPoseEntry");
-    rawBytesPublisher = rootTable->GetRawTopic("rawBytes").Publish("raw");
-    versionEntry = instance->GetTable("photonvision")->GetEntry("version");
+    rawBytesPublisher = rootTable->GetRawTopic("rawBytes").Publish("rawBytes");
+    versionEntry = instance.GetTable("photonvision")->GetEntry("version");
     // versionEntry.SetString(PhotonVersion.versionString);
   }
 
   explicit SimPhotonCamera(const std::string& cameraName)
-      : SimPhotonCamera(std::make_shared<nt::NetworkTableInstance>(
-                            nt::NetworkTableInstance::GetDefault()),
-                        cameraName) {}
+      : SimPhotonCamera(nt::NetworkTableInstance::GetDefault(), cameraName) {}
+
+  virtual ~SimPhotonCamera() = default;
 
   /**
    * Simulate one processed frame of vision data, putting one result to NT.

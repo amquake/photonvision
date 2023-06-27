@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 PhotonVision
+ * Copyright (c) PhotonVision
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -52,12 +52,15 @@ class PhotonTrackedTarget {
    * @param area The area of the target.
    * @param skew The skew of the target.
    * @param pose The camera-relative pose of the target.
+   * @param alternatePose The alternate camera-relative pose of the target.
    * @Param corners The corners of the bounding rectangle.
    */
   PhotonTrackedTarget(
       double yaw, double pitch, double area, double skew, int fiducialID,
-      const frc::Transform3d& pose,
-      const wpi::SmallVector<std::pair<double, double>, 4> corners);
+      const frc::Transform3d& pose, const frc::Transform3d& alternatePose,
+      double ambiguity,
+      const wpi::SmallVector<std::pair<double, double>, 4> corners,
+      const std::vector<std::pair<double, double>> detectedCorners);
 
   /**
    * Returns the target yaw (positive-left).
@@ -87,13 +90,30 @@ class PhotonTrackedTarget {
    * Get the Fiducial ID of the target currently being tracked,
    * or -1 if not set.
    */
-  double GetFiducialId() const { return fiducialId; }
+  int GetFiducialId() const { return fiducialId; }
 
   /**
-   * Returns the corners of the minimum area rectangle bounding this target.
+   * Return a list of the 4 corners in image space (origin top left, x right, y
+   * down), in no particular order, of the minimum area bounding rectangle of
+   * this target
    */
-  wpi::SmallVector<std::pair<double, double>, 4> GetCorners() const {
-    return corners;
+  wpi::SmallVector<std::pair<double, double>, 4> GetMinAreaRectCorners() const {
+    return minAreaRectCorners;
+  }
+
+  /**
+   * Return a list of the n corners in image space (origin top left, x right, y
+   * down), in no particular order, detected for this target.
+   * For fiducials, the order is known and is always counter-clock wise around
+   * the tag, like so
+   *
+   * -> +X     3 ----- 2
+   * |         |       |
+   * V + Y     |       |
+   *           0 ----- 1
+   */
+  std::vector<std::pair<double, double>> GetDetectedCorners() {
+    return detectedCorners;
   }
 
   /**
@@ -135,6 +155,7 @@ class PhotonTrackedTarget {
   frc::Transform3d bestCameraToTarget;
   frc::Transform3d altCameraToTarget;
   double poseAmbiguity;
-  wpi::SmallVector<std::pair<double, double>, 4> corners;
+  wpi::SmallVector<std::pair<double, double>, 4> minAreaRectCorners;
+  std::vector<std::pair<double, double>> detectedCorners;
 };
 }  // namespace photonlib

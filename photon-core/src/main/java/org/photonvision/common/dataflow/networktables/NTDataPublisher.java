@@ -89,7 +89,7 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
             ts.pipelineIndexPublisher.set(setIndex);
             // TODO: Log
         }
-        logger.debug("Successfully set pipeline index to " + newIndex);
+        logger.debug("Set pipeline index to " + newIndex);
     }
 
     private void onDriverModeChange(NetworkTableEvent entryNotification) {
@@ -102,7 +102,7 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
         }
 
         driverModeConsumer.accept(newDriverMode);
-        logger.debug("Successfully set driver mode to " + newDriverMode);
+        logger.debug("Set driver mode to " + newDriverMode);
     }
 
     private void removeEntries() {
@@ -119,7 +119,7 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
 
         pipelineIndexListener =
                 new NTDataChangeListener(
-                        ts.subTable.getInstance(), ts.pipelineIndexSubscriber, this::onPipelineIndexChange);
+                        ts.subTable.getInstance(), ts.pipelineIndexRequestSub, this::onPipelineIndexChange);
 
         driverModeListener =
                 new NTDataChangeListener(
@@ -180,6 +180,21 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
             ts.bestTargetPosY.set(0);
         }
 
+        // Something in the result can sometimes be null -- so check probably too many things
+        if (result != null
+                && result.inputAndOutputFrame != null
+                && result.inputAndOutputFrame.frameStaticProperties != null
+                && result.inputAndOutputFrame.frameStaticProperties.cameraCalibration != null) {
+            var fsp = result.inputAndOutputFrame.frameStaticProperties;
+            if (fsp.cameraCalibration != null) {
+                ts.cameraIntrinsicsPublisher.accept(fsp.cameraCalibration.getIntrinsicsArr());
+                ts.cameraDistortionPublisher.accept(fsp.cameraCalibration.getExtrinsicsArr());
+            }
+        } else {
+            ts.cameraIntrinsicsPublisher.accept(new double[] {});
+            ts.cameraDistortionPublisher.accept(new double[] {});
+        }
+
         ts.heartbeatPublisher.set(heartbeatCounter++);
 
         // TODO...nt4... is this needed?
@@ -189,11 +204,21 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
     public static List<PhotonTrackedTarget> simpleFromTrackedTargets(List<TrackedTarget> targets) {
         var ret = new ArrayList<PhotonTrackedTarget>();
         for (var t : targets) {
-            var points = new Point[4];
-            t.getMinAreaRect().points(points);
-            var cornerList = new ArrayList<TargetCorner>();
-
-            for (int i = 0; i < 4; i++) cornerList.add(new TargetCorner(points[i].x, points[i].y));
+            var minAreaRectCorners = new ArrayList<TargetCorner>();
+            var detectedCorners = new ArrayList<TargetCorner>();
+            {
+                var points = new Point[4];
+                t.getMinAreaRect().points(points);
+                for (int i = 0; i < 4; i++) {
+                    minAreaRectCorners.add(new TargetCorner(points[i].x, points[i].y));
+                }
+            }
+            {
+                var points = t.getTargetCorners();
+                for (int i = 0; i < points.size(); i++) {
+                    detectedCorners.add(new TargetCorner(points.get(i).x, points.get(i).y));
+                }
+            }
 
             ret.add(
                     new PhotonTrackedTarget(
@@ -205,7 +230,8 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
                             t.getBestCameraToTarget3d(),
                             t.getAltCameraToTarget3d(),
                             t.getPoseAmbiguity(),
-                            cornerList));
+                            minAreaRectCorners,
+                            detectedCorners));
         }
         return ret;
     }

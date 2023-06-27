@@ -1,24 +1,11 @@
 <template>
   <div>
-    <v-select
+    <CVselect
       v-model="selectedFamily"
-      dark
-      color="accent"
-      item-color="secondary"
-      label="Select target family"
-      :items="familyList"
-      @input="handlePipelineUpdate('tagFamily', familyList.indexOf(selectedFamily))"
-    />
-    <v-select
-      v-model="selectedModel"
-      dark
-      color="accent"
-      item-color="secondary"
-      label="Select a target model"
-      :items="targetList"
-      item-text="name"
-      item-value="data"
-      @input="handlePipelineUpdate('targetModel', targetList.indexOf(selectedModel) + 6)"
+      name="Target family"
+      :list="['AprilTag family 36h11', 'AprilTag family 25h9', 'AprilTag family 16h5']"
+      select-cols="8"
+      @input="handlePipelineUpdate('tagFamily', selectedFamily)"
     />
     <CVslider
       v-model="decimate"
@@ -58,19 +45,8 @@
       class="pt-2"
       slider-cols="8"
       name="Refine Edges"
-      tooltip="Further refines the apriltag corner position initial estimate, suggested left on"
+      tooltip="Further refines the AprilTag corner position initial estimate, suggested left on"
       @input="handlePipelineData('refineEdges')"
-    />
-    <CVslider
-      v-model="hammingDist"
-      class="pt-2 pb-4"
-      slider-cols="8"
-      name="Max error bits"
-      min="0"
-      max="10"
-      step="1"
-      tooltip="Maximum number of error bits to correct; potential tags with more will be thrown out. For smaller tags (like 16h5), set this as low as possible."
-      @input="handlePipelineData('hammingDist')"
     />
     <CVslider
       v-model="decisionMargin"
@@ -98,99 +74,81 @@
 </template>
 
 <script>
-    import CVslider from '../../components/common/cv-slider'
-    import CVswitch from '../../components/common/cv-switch'
+import CVslider from '../../components/common/cv-slider'
+import CVswitch from '../../components/common/cv-switch'
+import CVselect from '../../components/common/cv-select'
 
-    export default {
-        name: "AprilTag",
-        components: {
-          CVslider,
-          CVswitch,
-        },
-        data() {
-            return {
-              familyList: ["tag36h11", "tag25h9", "tag16h5"],
-              // Selected model is offset (ew) by 6 from the photon ordinal, as we only wanna show the 36h11 and 16h5 options
-              targetList: ['6.5in (36h11) AprilTag', '6in (16h5) AprilTag'], //Keep in sync with TargetModel.java
-            }
-        },
-        computed: {
-          selectedModel: {
-              get() {
-                  let ret = this.$store.getters.currentPipelineSettings.targetModel - 6
-                  return this.targetList[ret];
-              },
-              set(val) {
-                  this.$store.commit("mutatePipeline", {"targetModel": this.targetList.indexOf(val) + 6})
-              }
-          },
-          selectedFamily: {
-            get() {
-                let ret = this.$store.getters.currentPipelineSettings.tagFamily
-                return this.familyList[ret];
-            },
-            set(val) {
-                this.$store.commit("mutatePipeline", {"tagFamily": this.familyList.indexOf(val)})
-            }
-          },
-          decimate: {
-            get() {
-                return this.$store.getters.currentPipelineSettings.decimate
-            },
-            set(val) {
-                this.$store.commit("mutatePipeline", {"decimate": val});
-            }
-          },
-          hammingDist: {
-            get() {
-                return this.$store.getters.currentPipelineSettings.hammingDist
-            },
-            set(val) {
-                this.$store.commit("mutatePipeline", {"hammingDist": val});
-            }
-          },
-          decisionMargin: {
-            get() {
-                return this.$store.getters.currentPipelineSettings.decisionMargin
-            },
-            set(val) {
-                this.$store.commit("mutatePipeline", {"decisionMargin": val});
-            }
-          },
-          numIterations: {
-            get() {
-                return this.$store.getters.currentPipelineSettings.numIterations
-            },
-            set(val) {
-                this.$store.commit("mutatePipeline", {"numIterations": val});
-            }
-          },
-          blur: {
-            get() {
-                return this.$store.getters.currentPipelineSettings.blur
-            },
-            set(val) {
-                this.$store.commit("mutatePipeline", {"blur": val});
-            }
-          },
-          threads: {
-            get() {
-                return this.$store.getters.currentPipelineSettings.threads
-            },
-            set(val) {
-                this.$store.commit("mutatePipeline", {"threads": val});
-            }
-          },
-          refineEdges: {
-            get() {
-                return this.$store.getters.currentPipelineSettings.refineEdges
-            },
-            set(val) {
-                this.$store.commit("mutatePipeline", {"refineEdges": val});
-            }
-          },
-        },
-        methods: {
-        }
+export default {
+  name: "AprilTag",
+  components: {
+    CVslider,
+    CVswitch,
+    CVselect,
+  },
+  data() {
+    return {
+      familyList: ["AprilTag family 36h11", "AprilTag family 25h9", "AprilTag family 16h5"],
     }
+  },
+  computed: {
+    selectedFamily: {
+      get() {
+        return this.$store.getters.currentPipelineSettings.tagFamily
+      },
+      set(val) {
+        this.$store.commit("mutatePipeline", {"tagFamily": val})
+      }
+    },
+    decimate: {
+      get() {
+        return this.$store.getters.currentPipelineSettings.decimate
+      },
+      set(val) {
+        this.$store.commit("mutatePipeline", {"decimate": val});
+      }
+    },
+    decisionMargin: {
+      get() {
+        return this.$store.getters.currentPipelineSettings.decisionMargin
+      },
+      set(val) {
+        this.$store.commit("mutatePipeline", {"decisionMargin": val});
+      }
+    },
+    numIterations: {
+      get() {
+        return this.$store.getters.currentPipelineSettings.numIterations
+      },
+      set(val) {
+        this.$store.commit("mutatePipeline", {"numIterations": val});
+      }
+    },
+    blur: {
+      get() {
+        return this.$store.getters.currentPipelineSettings.blur
+      },
+      set(val) {
+        this.$store.commit("mutatePipeline", {"blur": val});
+      }
+    },
+    threads: {
+      get() {
+        return this.$store.getters.currentPipelineSettings.threads
+      },
+      set(val) {
+        this.$store.commit("mutatePipeline", {"threads": val});
+      }
+    },
+    refineEdges: {
+      get() {
+        return this.$store.getters.currentPipelineSettings.refineEdges
+      },
+      set(val) {
+        this.$store.commit("mutatePipeline", {"refineEdges": val});
+      }
+    },
+  },
+  methods: {
+  }
+}
 </script>

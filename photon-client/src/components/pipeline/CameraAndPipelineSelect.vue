@@ -1,8 +1,16 @@
 <template>
   <div>
+    <v-snackbar
+      v-model="snack"
+      top
+      :color="snackbar.color"
+      :timeout="2000"
+    >
+      <span>{{ snackbar.text }}</span>
+    </v-snackbar>
     <v-row
       align="center"
-      class="pl-6"
+      style="padding: 12px 12px 12px 24px"
     >
       <v-col
         cols="10"
@@ -31,12 +39,13 @@
         cols="2"
         md="1"
         lg="2"
+        class="pl-5"
       >
         <CVicon
           v-if="isCameraNameEdit === false"
           color="#c5c5c5"
           :hover="true"
-          text="edit"
+          text="mdi-pencil"
           tooltip="Edit camera name"
           @click="changeCameraName"
         />
@@ -45,7 +54,7 @@
             color="#c5c5c5"
             style="display: inline-block;"
             :hover="true"
-            text="save"
+            text="mdi-content-save"
             tooltip="Save Camera Name"
             @click="saveCameraNameChange"
           />
@@ -53,7 +62,7 @@
             color="error"
             style="display: inline-block;"
             :hover="true"
-            text="close"
+            text="mdi-close"
             tooltip="Discard Changes"
             @click="discardCameraNameChange"
           />
@@ -79,6 +88,7 @@
         cols="2"
         md="1"
         lg="2"
+        class="pl-5"
       >
         <v-menu
           v-if="!$store.getters.isDriverMode"
@@ -90,7 +100,7 @@
               color="#c5c5c5"
               v-on="on"
             >
-              menu
+              mdi-menu
             </v-icon>
           </template>
           <v-list
@@ -103,7 +113,7 @@
                 <CVicon
                   color="#c5c5c5"
                   :right="true"
-                  text="edit"
+                  text="mdi-pencil"
                   tooltip="Edit pipeline name"
                 />
               </v-list-item-title>
@@ -113,7 +123,7 @@
                 <CVicon
                   color="#c5c5c5"
                   :right="true"
-                  text="add"
+                  text="mdi-plus"
                   tooltip="Add new pipeline"
                 />
               </v-list-item-title>
@@ -123,7 +133,7 @@
                 <CVicon
                   color="red darken-2"
                   :right="true"
-                  text="delete"
+                  text="mdi-delete"
                   tooltip="Delete pipeline"
                 />
               </v-list-item-title>
@@ -142,7 +152,7 @@
         </v-menu>
       </v-col>
       <v-col
-        v-if="currentPipelineType >= 0"
+        v-if="_currentPipelineType >= 0"
         cols="10"
         md="11"
         lg="10"
@@ -150,7 +160,7 @@
         class="pa-0"
       >
         <CVselect
-          v-model="currentPipelineType"
+          v-model="_currentPipelineType"
           name="Type"
           tooltip="Changes the pipeline type, which changes the type of processing that will happen on input frames"
           :list="['Reflective Tape', 'Colored Shape', 'AprilTag']"
@@ -249,160 +259,182 @@ import CVselect from '../common/cv-select'
 import CVinput from '../common/cv-input'
 
 export default {
-  name: "CameraAndPipelineSelect",
-  components: {
-    CVicon,
-    CVselect,
-    CVinput
-  },
-  data: () => {
-    return {
-      re: RegExp("^[A-Za-z0-9 \\-)(]*[A-Za-z0-9][A-Za-z0-9 \\-)(.]*$"),
-      isCameraNameEdit: false,
-      newCameraName: "",
-      cameraNameError: "",
-      isPipelineNameEdit: false,
-      namingDialog: false,
-      newPipelineName: "",
-      duplicateDialog: false,
-      showPipeTypeDialog: false,
-      proposedPipelineType : 0,
-      pipeIndexToDuplicate: undefined
-    }
-  },
-  computed: {
-    checkCameraName() {
-      if (this.newCameraName !== this.$store.getters.cameraList[this.currentCameraIndex]) {
-        if (this.re.test(this.newCameraName)) {
-          for (let cam in this.cameraList) {
-            if (this.cameraList.hasOwnProperty(cam)) {
-              if (this.newCameraName === this.cameraList[cam]) {
-                return "A camera by that name already exists"
-              }
+    name: "CameraAndPipelineSelect",
+    components: {
+        CVicon,
+        CVselect,
+        CVinput
+    },
+    data: () => {
+        return {
+            re: RegExp("^[A-Za-z0-9_ \\-)(]*[A-Za-z0-9][A-Za-z0-9_ \\-)(.]*$"),
+            isCameraNameEdit: false,
+            newCameraName: "",
+            cameraNameError: "",
+            isPipelineNameEdit: false,
+            namingDialog: false,
+            newPipelineName: "",
+            duplicateDialog: false,
+            showPipeTypeDialog: false,
+            proposedPipelineType : 0,
+            pipeIndexToDuplicate: undefined,
+            snack: false,
+            snackbar: {
+              color: "success",
+              text: "",
             }
-          }
-        } else {
-          return "A camera name can only contain letters, numbers, and spaces"
         }
-      }
-      return "";
     },
-    checkPipelineName() {
-      if (this.newPipelineName !== this.$store.getters.pipelineList[this.currentPipelineIndex - 1] || this.isPipelineNameEdit === false) {
-        if (this.re.test(this.newPipelineName)) {
-          for (let pipe in this.$store.getters.pipelineList) {
-            if (this.$store.getters.pipelineList.hasOwnProperty(pipe)) {
-              if (this.newPipelineName === this.$store.getters.pipelineList[pipe]) {
-                return "A pipeline with this name already exists"
-              }
+    computed: {
+        checkCameraName() {
+            if (this.newCameraName !== this.$store.getters.cameraList[this.currentCameraIndex]) {
+                if (this.re.test(this.newCameraName)) {
+                    for (let cam in this.cameraList) {
+                        if (this.cameraList.hasOwnProperty(cam)) {
+                            if (this.newCameraName === this.cameraList[cam]) {
+                                return "A camera by that name already exists"
+                            }
+                        }
+                    }
+                } else {
+                    return "A camera name can only contain letters, numbers, and spaces"
+                }
             }
-          }
-        } else {
-          return "A pipeline name can only contain letters, numbers, and spaces"
+            return "";
+        },
+        checkPipelineName() {
+            if (this.newPipelineName !== this.$store.getters.pipelineList[this.currentPipelineIndex - 1] || !this.isPipelineNameEdit) {
+                if (this.re.test(this.newPipelineName)) {
+                    for (let pipe in this.$store.getters.pipelineList) {
+                        if (this.$store.getters.pipelineList.hasOwnProperty(pipe)) {
+                            if (this.newPipelineName === this.$store.getters.pipelineList[pipe]) {
+                                return "A pipeline with this name already exists"
+                            }
+                        }
+                    }
+                } else {
+                    return "A pipeline name can only contain letters, numbers, and spaces"
+                }
+            }
+            return ""
+        },
+        currentCameraIndex: {
+            get() {
+                return this.$store.getters.currentCameraIndex;
+            },
+            set(value) {
+                this.$store.commit('currentCameraIndex', value);
+            }
+        },
+        currentPipelineIndex: {
+            get() {
+                return this.$store.getters.currentPipelineIndex + (this.$store.getters.isDriverMode ? 1 : 0);
+            },
+            set(value) {
+                this.$store.commit('currentPipelineIndex', value - (this.$store.getters.isDriverMode ? 1 : 0));
+            }
+        },
+        _currentPipelineType: {
+            get() {
+                return this.$store.getters.currentPipelineSettings.pipelineType - 2;
+            },
+            set(value) {
+                value; // nop, since we have the dialog for this
+            }
         }
-      }
-      return ""
     },
-    currentCameraIndex: {
-      get() {
-        return this.$store.getters.currentCameraIndex;
-      },
-      set(value) {
-        this.$store.commit('currentCameraIndex', value);
-      }
-    },
-    currentPipelineIndex: {
-      get() {
-        return this.$store.getters.currentPipelineIndex + (this.$store.getters.isDriverMode ? 1 : 0);
-      },
-      set(value) {
-        this.$store.commit('currentPipelineIndex', value - (this.$store.getters.isDriverMode ? 1 : 0));
-      }
-    },
-    currentPipelineType: {
-      get() {
-        return this.$store.getters.currentPipelineSettings.pipelineType - 2;
-      },
-      set(value) {
-        value; // nop, since we have the dialog for this
-      }
+    methods: {
+        showTypeDialog(idx) {
+            // Only show the dialog if it's a new type
+            this.showPipeTypeDialog = idx !== this._currentPipelineType;
+            this.proposedPipelineType = idx;
+        },
+        changePipeType(actuallyChange) {
+            const newIdx = actuallyChange ? this.proposedPipelineType : this._currentPipelineType
+            this.handleInputWithIndex('pipelineType', newIdx);
+            this.showPipeTypeDialog = false;
+        },
+        changeCameraName() {
+            this.newCameraName = this.$store.getters.cameraList[this.currentCameraIndex];
+            this.isCameraNameEdit = true;
+        },
+        saveCameraNameChange() {
+            if (this.checkCameraName === "") {
+                this.axios.post('http://' + this.$address + '/api/settings/camera/setNickname',
+                    {name: this.newCameraName, cameraIndex: this.$store.getters.currentCameraIndex})
+                    .then(response => {
+                      this.$emit('camera-name-changed')
+
+                      this.snackbar = {
+                        color: "success",
+                        text: response.data.text || response.data
+                      }
+                      this.snack = true;
+                    })
+                    .catch(error => {
+                      this.$emit('camera-name-changed')
+
+                      if(error.response) {
+                        this.snackbar = {
+                          color: "error",
+                          text:  error.response.data.text || error.response.data
+                        }
+                      } else if(error.request) {
+                        this.snackbar = {
+                          color: "error",
+                          text: "Error while trying to process the request! The backend didn't respond.",
+                        };
+                      } else {
+                        this.snackbar = {
+                          color: "error",
+                          text: "An error occurred while trying to process the request.",
+                        };
+                      }
+                      this.snack = true;
+                    })
+                this.discardCameraNameChange();
+            }
+        },
+        discardCameraNameChange() {
+            this.isCameraNameEdit = false;
+            this.newCameraName = "";
+        },
+        toPipelineNameChange() {
+            this.newPipelineName = this.$store.getters.pipelineList[this.currentPipelineIndex - 1];
+            this.isPipelineNameEdit = true;
+            this.namingDialog = true;
+        },
+        toCreatePipeline() {
+            this.newPipelineName = "New Pipeline";
+            this.isPipelineNameEdit = false;
+            this.namingDialog = true;
+        },
+        deleteCurrentPipeline() {
+            if (this.$store.getters.pipelineList.length > 1) {
+                this.handleInputWithIndex('deleteCurrentPipeline', {});
+            } else {
+                this.snackbar = true;
+            }
+        },
+        savePipelineNameChange() {
+            if (this.checkPipelineName === "") {
+                if (this.isPipelineNameEdit) {
+                    this.handleInputWithIndex("changePipelineName", this.newPipelineName);
+                } else {
+                    this.handleInputWithIndex("addNewPipeline", [this.newPipelineName, this._currentPipelineType]); // 0 for reflective, 1 for colored shape
+                }
+                this.discardPipelineNameChange();
+            }
+        },
+        duplicatePipeline() {
+            this.handleInputWithIndex("duplicatePipeline", this.currentPipelineIndex);
+        },
+        discardPipelineNameChange() {
+            this.namingDialog = false;
+            this.isPipelineNameEdit = false;
+            this.newPipelineName = "";
+        },
     }
-  },
-  methods: {
-    showTypeDialog(idx) {
-      // Only show the dialog if it's a new type
-      this.showPipeTypeDialog = idx !== this.currentPipelineType;
-      this.proposedPipelineType = idx;
-    },
-    changePipeType(actuallyChange) {
-      const newIdx = actuallyChange ? this.proposedPipelineType : this.currentPipelineType
-      this.handleInputWithIndex('pipelineType', newIdx);
-      this.showPipeTypeDialog = false;
-    },
-    changeCameraName() {
-      this.newCameraName = this.$store.getters.cameraList[this.currentCameraIndex];
-      this.isCameraNameEdit = true;
-    },
-    saveCameraNameChange() {
-      if (this.checkCameraName === "") {
-        // this.handleInputWithIndex("changeCameraName", this.newCameraName);
-        this.axios.post('http://' + this.$address + '/api/setCameraNickname',
-            {name: this.newCameraName, cameraIndex: this.$store.getters.currentCameraIndex})
-            // eslint-disable-next-line
-            .then(r => {
-              this.$emit('camera-name-changed')
-            })
-            .catch(e => {
-              console.log("HTTP error while changing camera name " + e);
-              this.$emit('camera-name-changed')
-            })
-        this.discardCameraNameChange();
-      }
-    },
-    discardCameraNameChange() {
-      this.isCameraNameEdit = false;
-      this.newCameraName = "";
-    },
-    toPipelineNameChange() {
-      this.newPipelineName = this.$store.getters.pipelineList[this.currentPipelineIndex - 1];
-      this.isPipelineNameEdit = true;
-      this.namingDialog = true;
-    },
-    toCreatePipeline() {
-      this.newPipelineName = "New Pipeline";
-      this.isPipelineNameEdit = false;
-      this.namingDialog = true;
-    },
-    deleteCurrentPipeline() {
-      if (this.$store.getters.pipelineList.length > 1) {
-        this.handleInputWithIndex('deleteCurrentPipeline', {});
-      } else {
-        this.snackbar = true;
-      }
-    },
-    savePipelineNameChange() {
-      if (this.checkPipelineName === "") {
-        if (this.isPipelineNameEdit) {
-          this.handleInputWithIndex("changePipelineName", this.newPipelineName);
-        } else {
-          this.handleInputWithIndex("addNewPipeline", [this.newPipelineName, this.currentPipelineType]); // 0 for reflective, 1 for colored shpae
-        }
-        this.discardPipelineNameChange();
-      }
-    },
-    duplicatePipeline() {
-      this.handleInputWithIndex("duplicatePipeline", this.currentPipelineIndex);
-    },
-    discardPipelineNameChange() {
-      this.namingDialog = false;
-      this.isPipelineNameEdit = false;
-      this.newPipelineName = "";
-    },
-  }
 
 }
 </script>
-
-<style scoped>
-
-</style>

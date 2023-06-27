@@ -22,6 +22,7 @@ import java.util.HashMap;
 import org.photonvision.common.configuration.CameraConfiguration;
 import org.photonvision.common.logging.LogGroup;
 import org.photonvision.common.logging.Logger;
+import org.photonvision.common.util.vision.OpenCvUtils;
 import org.photonvision.vision.calibration.CameraCalibrationCoefficients;
 import org.photonvision.vision.frame.FrameStaticProperties;
 
@@ -49,6 +50,7 @@ public abstract class VisionSourceSettables {
     public abstract void setBrightness(int brightness);
 
     public abstract void setGain(int gain);
+
     // Pretty uncommon so instead of abstract this is just a no-op by default
     // Overriden by cameras with AWB gain support
     public void setRedGain(int red) {}
@@ -62,6 +64,11 @@ public abstract class VisionSourceSettables {
     }
 
     public void setVideoMode(VideoMode mode) {
+        if (OpenCvUtils.videoModeEquals(mode, getCurrentVideoMode())) {
+            logger.info("Requested video mode is already the current video mode");
+            return;
+        }
+
         logger.info(
                 "Setting video mode to "
                         + "FPS: "

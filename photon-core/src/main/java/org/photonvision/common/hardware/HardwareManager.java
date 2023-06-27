@@ -17,7 +17,8 @@
 
 package org.photonvision.common.hardware;
 
-import edu.wpi.first.networktables.IntegerEntry;
+import edu.wpi.first.networktables.IntegerPublisher;
+import edu.wpi.first.networktables.IntegerSubscriber;
 import java.io.IOException;
 import org.photonvision.common.ProgramStatus;
 import org.photonvision.common.configuration.ConfigManager;
@@ -27,7 +28,7 @@ import org.photonvision.common.dataflow.networktables.NTDataChangeListener;
 import org.photonvision.common.dataflow.networktables.NetworkTablesManager;
 import org.photonvision.common.hardware.GPIO.CustomGPIO;
 import org.photonvision.common.hardware.GPIO.pi.PigpioSocket;
-import org.photonvision.common.hardware.metrics.MetricsBase;
+import org.photonvision.common.hardware.metrics.MetricsManager;
 import org.photonvision.common.logging.LogGroup;
 import org.photonvision.common.logging.Logger;
 import org.photonvision.common.util.ShellExec;
@@ -41,11 +42,15 @@ public class HardwareManager {
     private final HardwareConfig hardwareConfig;
     private final HardwareSettings hardwareSettings;
 
+    private final MetricsManager metricsManager;
+
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final StatusLED statusLED;
 
     @SuppressWarnings("FieldCanBeLocal")
-    private final IntegerEntry ledModeEntry;
+    private IntegerSubscriber ledModeRequest;
+
+    private IntegerPublisher ledModeState;
 
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final NTDataChangeListener ledModeListener;
@@ -65,8 +70,20 @@ public class HardwareManager {
     private HardwareManager(HardwareConfig hardwareConfig, HardwareSettings hardwareSettings) {
         this.hardwareConfig = hardwareConfig;
         this.hardwareSettings = hardwareSettings;
+
+        this.metricsManager = new MetricsManager();
+        this.metricsManager.setConfig(hardwareConfig);
+
+        ledModeRequest =
+                NetworkTablesManager.getInstance()
+                        .kRootTable
+                        .getIntegerTopic("ledModeRequest")
+                        .subscribe(-1);
+        ledModeState =
+                NetworkTablesManager.getInstance().kRootTable.getIntegerTopic("ledModeState").publish();
+        ledModeState.set(VisionLEDMode.kDefault.value);
+
         CustomGPIO.setConfig(hardwareConfig);
-        MetricsBase.setConfig(hardwareConfig);
 
         if (Platform.isRaspberryPi()) {
             pigpioSocket = new PigpioSocket();
@@ -87,17 +104,15 @@ public class HardwareManager {
                                 hardwareConfig.ledPins,
                                 hasBrightnessRange ? hardwareConfig.ledBrightnessRange.get(0) : 0,
                                 hasBrightnessRange ? hardwareConfig.ledBrightnessRange.get(1) : 100,
-                                pigpioSocket);
+                                pigpioSocket,
+                                ledModeState::set);
 
-        ledModeEntry =
-                NetworkTablesManager.getInstance().kRootTable.getIntegerTopic("ledMode").getEntry(0);
-        ledModeEntry.set(VisionLEDMode.kDefault.value);
         ledModeListener =
                 visionLED == null
                         ? null
                         : new NTDataChangeListener(
                                 NetworkTablesManager.getInstance().kRootTable.getInstance(),
-                                ledModeEntry,
+                                ledModeRequest,
                                 visionLED::onLedModeChange);
 
         Runtime.getRuntime().addShutdownHook(new Thread(this::onJvmExit));
@@ -123,10 +138,11 @@ public class HardwareManager {
     private void onJvmExit() {
         logger.info("Shutting down LEDs...");
         if (visionLED != null) visionLED.setState(false);
+        ConfigManager.getInstance().saveToDisk();
     }
 
     public boolean restartDevice() {
-        if (Platform.isRaspberryPi()) {
+        if (Platform.isLinux()) {
             try {
                 return shellExec.executeBashCommand("reboot now") == 0;
             } catch (IOException e) {
@@ -161,5 +177,9 @@ public class HardwareManager {
 
     public HardwareConfig getConfig() {
         return hardwareConfig;
+    }
+
+    public void publishMetrics() {
+        metricsManager.publishMetrics();
     }
 }

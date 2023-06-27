@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 PhotonVision
+ * Copyright (c) PhotonVision
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@
 
 #include <frc/Errors.h>
 #include <frc/Timer.h>
+#include <opencv2/core/mat.hpp>
 
 #include "PhotonVersion.h"
 #include "photonlib/Packet.h"
@@ -33,33 +34,50 @@
 namespace photonlib {
 
 constexpr const units::second_t VERSION_CHECK_INTERVAL = 5_s;
+static const std::vector<std::string_view> PHOTON_PREFIX = {"/photonvision/"};
 
-PhotonCamera::PhotonCamera(std::shared_ptr<nt::NetworkTableInstance> instance,
-                           const std::string& cameraName)
-    : mainTable(instance->GetTable("photonvision")),
+PhotonCamera::PhotonCamera(nt::NetworkTableInstance instance,
+                           const std::string_view cameraName)
+    : mainTable(instance.GetTable("photonvision")),
       rootTable(mainTable->GetSubTable(cameraName)),
-      rawBytesEntry(rootTable->GetRawTopic("rawBytes").Subscribe("raw", {})),
-      driverModeEntry(rootTable->GetBooleanTopic("driverMode").Publish()),
+      rawBytesEntry(
+          rootTable->GetRawTopic("rawBytes")
+              .Subscribe("rawBytes", {}, {.periodic = 0.01, .sendAll = true})),
       inputSaveImgEntry(
-          rootTable->GetBooleanTopic("inputSaveImgCmd").Publish()),
+          rootTable->GetIntegerTopic("inputSaveImgCmd").Publish()),
+      inputSaveImgSubscriber(
+          rootTable->GetIntegerTopic("inputSaveImgCmd").Subscribe(0)),
       outputSaveImgEntry(
-          rootTable->GetBooleanTopic("outputSaveImgCmd").Publish()),
-      pipelineIndexEntry(rootTable->GetIntegerTopic("pipelineIndex").Publish()),
-      ledModeEntry(mainTable->GetIntegerTopic("ledMode").Publish()),
+          rootTable->GetIntegerTopic("outputSaveImgCmd").Publish()),
+      outputSaveImgSubscriber(
+          rootTable->GetIntegerTopic("outputSaveImgCmd").Subscribe(0)),
+      pipelineIndexPub(
+          rootTable->GetIntegerTopic("pipelineIndexRequest").Publish()),
+      pipelineIndexSub(
+          rootTable->GetIntegerTopic("pipelineIndexState").Subscribe(0)),
+      ledModePub(mainTable->GetIntegerTopic("ledMode").Publish()),
+      ledModeSub(mainTable->GetIntegerTopic("ledMode").Subscribe(0)),
       versionEntry(mainTable->GetStringTopic("version").Subscribe("")),
+      cameraIntrinsicsSubscriber(
+          rootTable->GetDoubleArrayTopic("cameraIntrinsics").Subscribe({})),
+      cameraDistortionSubscriber(
+          rootTable->GetDoubleArrayTopic("cameraDistortion").Subscribe({})),
       driverModeSubscriber(
           rootTable->GetBooleanTopic("driverMode").Subscribe(false)),
-      pipelineIndexSubscriber(
-          rootTable->GetIntegerTopic("pipelineIndex").Subscribe(-1)),
-      ledModeSubscriber(mainTable->GetIntegerTopic("ledMode").Subscribe(0)),
-      path(rootTable->GetPath()) {}
+      driverModePublisher(
+          rootTable->GetBooleanTopic("driverModeRequest").Publish()),
+      m_topicNameSubscriber(instance, PHOTON_PREFIX, {.topicsOnly = true}),
+      path(rootTable->GetPath()),
+      m_cameraName(cameraName) {}
 
-PhotonCamera::PhotonCamera(const std::string& cameraName)
-    : PhotonCamera(std::make_shared<nt::NetworkTableInstance>(
-                       nt::NetworkTableInstance::GetDefault()),
-                   cameraName) {}
+PhotonCamera::PhotonCamera(const std::string_view cameraName)
+    : PhotonCamera(nt::NetworkTableInstance::GetDefault(), cameraName) {}
 
 PhotonPipelineResult PhotonCamera::GetLatestResult() {
+  if (test) {
+    return testResult;
+  }
+
   // Prints warning if not connected
   VerifyVersion();
 
@@ -84,29 +102,55 @@ PhotonPipelineResult PhotonCamera::GetLatestResult() {
 }
 
 void PhotonCamera::SetDriverMode(bool driverMode) {
-  driverModeEntry.Set(driverMode);
+  driverModePublisher.Set(driverMode);
 }
 
-void PhotonCamera::TakeInputSnapshot() { inputSaveImgEntry.Set(true); }
+void PhotonCamera::TakeInputSnapshot() {
+  inputSaveImgEntry.Set(inputSaveImgSubscriber.Get() + 1);
+}
 
-void PhotonCamera::TakeOutputSnapshot() { outputSaveImgEntry.Set(true); }
+void PhotonCamera::TakeOutputSnapshot() {
+  outputSaveImgEntry.Set(outputSaveImgSubscriber.Get() + 1);
+}
 
 bool PhotonCamera::GetDriverMode() const { return driverModeSubscriber.Get(); }
 
 void PhotonCamera::SetPipelineIndex(int index) {
-  pipelineIndexEntry.Set(static_cast<double>(index));
+  pipelineIndexPub.Set(static_cast<double>(index));
 }
 
 int PhotonCamera::GetPipelineIndex() const {
-  return static_cast<int>(pipelineIndexSubscriber.Get());
+  return static_cast<int>(pipelineIndexSub.Get());
 }
 
 LEDMode PhotonCamera::GetLEDMode() const {
-  return static_cast<LEDMode>(static_cast<int>(ledModeSubscriber.Get()));
+  return static_cast<LEDMode>(static_cast<int>(ledModeSub.Get()));
+}
+
+std::optional<cv::Mat> PhotonCamera::GetCameraMatrix() {
+  auto camCoeffs = cameraIntrinsicsSubscriber.Get();
+  if (camCoeffs.size() == 9) {
+    // clone should deal with ownership concerns? not sure
+    return cv::Mat(3, 3, CV_64FC1, camCoeffs.data()).clone();
+  }
+  return std::nullopt;
 }
 
 void PhotonCamera::SetLEDMode(LEDMode mode) {
-  ledModeEntry.Set(static_cast<double>(static_cast<int>(mode)));
+  ledModePub.Set(static_cast<double>(static_cast<int>(mode)));
+}
+
+const std::string_view PhotonCamera::GetCameraName() const {
+  return m_cameraName;
+}
+
+std::optional<cv::Mat> PhotonCamera::GetDistCoeffs() {
+  auto distCoeffs = cameraDistortionSubscriber.Get();
+  if (distCoeffs.size() == 5) {
+    // clone should deal with ownership concerns? not sure
+    return cv::Mat(5, 1, CV_64FC1, distCoeffs.data()).clone();
+  }
+  return std::nullopt;
 }
 
 void PhotonCamera::VerifyVersion() {
@@ -120,10 +164,29 @@ void PhotonCamera::VerifyVersion() {
   const std::string& versionString = versionEntry.Get("");
   if (versionString.empty()) {
     std::string path_ = path;
-    FRC_ReportError(
-        frc::warn::Warning,
-        "PhotonVision coprocessor at path {} not found on NetworkTables!",
-        path_);
+    std::vector<std::string> cameraNames =
+        rootTable->GetInstance().GetTable("photonvision")->GetSubTables();
+    if (cameraNames.empty()) {
+      FRC_ReportError(frc::warn::Warning,
+                      "Could not find any PhotonVision coprocessors on "
+                      "NetworkTables. Double check that PhotonVision is "
+                      "running, and that your camera is connected!");
+    } else {
+      FRC_ReportError(
+          frc::warn::Warning,
+          "PhotonVision coprocessor at path {} not found on NetworkTables. "
+          "Double check that your camera names match!",
+          path_);
+
+      std::string cameraNameOutString;
+      for (unsigned int i = 0; i < cameraNames.size(); i++) {
+        cameraNameOutString += "\n" + cameraNames[i];
+      }
+      FRC_ReportError(
+          frc::warn::Warning,
+          "Found the following PhotonVision cameras on NetworkTables:{}",
+          cameraNameOutString);
+    }
   } else if (!VersionMatches(versionString)) {
     FRC_ReportError(frc::warn::Warning,
                     "Photon version {} does not match coprocessor version {}!",
